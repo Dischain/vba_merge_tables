@@ -10,41 +10,134 @@ Attribute VB_Exposed = False
 Private pName As String
 Private pParent As ComplexField
 Private pCell As Range
-Private pNumChildren As Long
-Private pChildren() As ComplexField
+Private pNumSubFields As Long
+Private pSubFields() As ComplexField
 Private pComplexityLevel As Integer
 Private pPath As String
+Private pLowestFields As Dictionary
+Private ws As Worksheet
 
-Public Sub init(c As Range, Optional level As Integer, Optional parent As ComplexField)
-  pName = c.value
-  pPath = c.value
-  pNumChildren = 0
+Public Sub init(sheet As Worksheet, c As String, Optional level As Integer, Optional parent As ComplexField)
+  Set ws = sheet
+  Set pParent = parent
+  Set pCell = ws.Range(c)
+  Set pLowestFields = New Dictionary
+  
+  pName = Trim(eraseSPs(eraseEOLs(s:=pCell.Value)))
+  pPath = pName
+  pNumSubFields = 0
   pComplexityLevel = level
   
-  Set pCell = c
-  Set parent = parent
-  
   Me.buildSubFields level:=pComplexityLevel, initial:=Me
+  Me.collectLowestFields level:=pComplexityLevel, initial:=Me, acc:=Me
 End Sub
 
 Public Sub addChild(child As ComplexField)
-  ReDim Preserve pChildren(pNumChildren)
-  Set pChildren(pNumChildren) = child
+  ReDim Preserve pSubFields(pNumSubFields)
+  Set pSubFields(pNumSubFields) = child
   
-  pNumChildren = pNumChildren + 1
+  pNumSubFields = pNumSubFields + 1
   
   child.setParent p:=Me
 End Sub
 
-Public Function valueAt(row As Long) As Range
+Public Sub setParent(p As ComplexField)
+  Set pParent = p
+  pPath = p.path & "/" & pPath
+End Sub
+
+Public Function hasChildren() As Boolean
+  hasChildren = pNumSubFields <> 0
+End Function
+
+'-------------------------------------------------'
+'-----------------LowestFields--------------------'
+'-------------------------------------------------'
+Public Sub collectLowestFields(level As Integer, initial As ComplexField, acc As ComplexField)
+  If level > 1 Then
+    For i = 0 To UBound(acc.subFields)
+      acc.subFields(i).collectLowestFields level:=(level - 1), initial:=initial, acc:=(acc.subFields(i))
+    Next
+  End If
+  If level = 1 Then
+    For i = 0 To UBound(acc.subFields)
+      Dim sf As ComplexField
+      Set sf = acc.subFields(i)
+      
+      initial.addLowestFields lf:=sf
+    Next
+  End If
+End Sub
+
+Public Sub addLowestFields(lf As ComplexField)
+  Dim pf As PrimitiveField
+  Set pf = PrimitiveFieldFactory.CreatePrimitiveField(addr:=lf.address, path:=lf.path, ws:=ws)
+  
+  pLowestFields.Add Key:=pf.path, Item:=pf
+End Sub
+
+'-------------------------------------------------'
+'--------------------SubFields--------------------'
+'-------------------------------------------------'
+Public Sub buildSubFields(level As Integer, initial As ComplexField)
+  If level > 0 Then
+    initial.combineSubFields init:=initial
+    If initial.numSubFields <> 0 Then
+      For i = 0 To UBound(initial.subFields)
+        initial.subFields(i).buildSubFields (level - 1), (initial.subFields(i))
+      Next
+    End If
+  End If
+End Sub
+
+Public Sub combineSubFields(init As ComplexField)
+  subCols = combineSubCols(init.address, ws)
+  
+  For i = 0 To UBound(subCols)
+    Dim subCol As ComplexField
+    Set subCol = subCols(i)
+    init.addChild subCol
+  Next i
+End Sub
+'-------------------------------------------------'
+
+
+'-------------------------------------------------'
+'---------------------Cells-----------------------'
+'-------------------------------------------------'
+
+Public Function setValByPath(path As String, row As Long, v As String)
   Dim letter As String
   letter = Split(Cells(1, pCell.Column).address, "$")(1)
   
-  Set valueAt = Range(letter & row)
+  Dim subfield As PrimitiveField
+  Set subfield = pLowestFields.Item(path)
+  subfield.setValueAt newVal:=v, row:=row
 End Function
 
-Public Property Get children() As Variant
-    children = pChildren
+Public Function getCellByPath(path As String, row As Long) As Range
+  Dim letter As String
+  letter = Split(Cells(1, pCell.Column).address, "$")(1)
+  
+  Dim subfield As PrimitiveField
+  Set subfield = pLowestFields.Item(path)
+  Set getCellByPath = subfield.getCellAt(row:=row)
+End Function
+
+Public Function getValueByPath(path As String, row As Long) As String
+  Dim letter As String
+  letter = Split(Cells(1, pCell.Column).address, "$")(1)
+  
+  Dim subfield As PrimitiveField
+  Set subfield = pLowestFields.Item(path)
+  getValueByPath = subfield.getValueAt(row:=row)
+End Function
+
+'-------------------------------------------------'
+'--------------------Getters----------------------'
+'-------------------------------------------------'
+Public Property Get subFields() As Variant
+    subFields = pSubFields
 End Property
 
 Public Property Get name() As String
@@ -63,37 +156,11 @@ Public Property Get path() As String
   path = pPath
 End Property
 
-Public Sub setParent(p As ComplexField)
-  Set pParent = p
-  pPath = p.path & "/" & pPath
-End Sub
-
-Public Property Get numChildren() As Long
-    numChildren = pNumChildren
+Public Property Get numSubFields() As Long
+    numSubFields = pNumSubFields
 End Property
 
-Public Function hasChildren() As Boolean
-  hasChildren = pNumChildren <> 0
-End Function
-
-Public Sub buildSubFields(level As Integer, initial As ComplexField)
-  If level > 0 Then
-    initial.combineSubFields init:=initial
-    If initial.numChildren <> 0 Then
-      For i = 0 To UBound(initial.children)
-        initial.children(i).buildSubFields (level - 1), (initial.children(i))
-      Next
-    End If
-  End If
-End Sub
-
-Public Sub combineSubFields(init As ComplexField)
-  subCols = combineSubCols(init.address)
-  
-  For i = 0 To UBound(subCols)
-    Dim subCol As ComplexField
-    Set subCol = subCols(i)
-    init.addChild subCol
-  Next i
-End Sub
+Public Property Get lowestFields() As Dictionary
+  Set lowestFields = pLowestFields
+End Property
 
