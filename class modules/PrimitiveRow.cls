@@ -21,7 +21,7 @@ Public Sub init(sheet As Worksheet, c As String, Optional signs As Variant)
     Set pSigns = createSignsDict(t)
   End If
   
-  pName = Trim(eraseSPs(eraseEOLs(s:=pCell.Value)))
+  pName = Trim(eraseTrailingPeriod(eraseSPs(eraseEOLs(s:=pCell.Value))))
 End Sub
 
 Public Property Get signs() As Dictionary

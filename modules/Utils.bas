@@ -47,7 +47,7 @@ Public Function createRowMap(addr As String, ws As Worksheet, Optional signs As 
     If r.Value <> "" And Not containsEscapeWords(r.Value) Then
       Dim row As PrimitiveRow
       Set row = PrimitiveRowFactory.CreatePrimitiveRow(ws, (r.address), signs)
-      
+            
       rowMap.Add Key:=row.name, Item:=row
     End If
   Next
@@ -89,10 +89,8 @@ Public Function mergeRowsWithSigns(inRowMap As Dictionary, outRowMap As Dictiona
       Set outRowSigns = outRow.signs
       
       If dictEquals(inRowSigns, outRowSigns) Then
-        Debug.Print ("eq")
         mergeSingleRow inRow:=inRow.row, outRow:=outRow.row, inFieldMap:=inFieldMap, outFieldMap:=outFieldMap
       Else
-        Debug.Print ("not eq")
         notMatched.Add Key:=inRow.name, Item:=inRow
       End If
     Else
@@ -116,10 +114,11 @@ Public Sub mergeSingleRow(inRow As Long, outRow As Long, inFieldMap As Dictionar
       Set outFieldLowestFields = outField.lowestFields
       
       For Each inLF In inFieldLowestFields.Items
+        
         If outFieldLowestFields.Exists(Key:=inLF.path) Then
           Dim outLF As PrimitiveField
           Set outLF = outFieldLowestFields.Item(Key:=inLF.path)
-          
+                    
           inVal = inLF.getValueAt(inRow)
           outLF.setValueAt (inVal), (outRow)
         End If
@@ -140,9 +139,11 @@ Public Function dictEquals(dict1 As Dictionary, dict2 As Dictionary) As Boolean
 End Function
 
 Public Function containsEscapeWords(name As String) As Boolean
-  For Each word In escapeWords
-    If startsWith((word), name) Then
-      
+  For Each w In escapeWords
+    word = LCase(w)
+    Dim str As String
+    str = LCase(name)
+    If startsWith((word), str) Then
       containsEscapeWords = True
       Exit Function
     End If
@@ -159,14 +160,13 @@ Public Function startsWith(s As String, seed As String) As Boolean
 End Function
 
 Public Function escapeWords() As Variant
-  escapeWords = Array("Министерство", "Объекты", "Модернизация", "Служба", "Государственный комитет")
+  escapeWords = Array("Министерство", "Дирекция", "Объекты", "Модернизация", "Служба", "Государственный комитет", "Управление")
 End Function
 
 Public Function arrayToString(arr As Variant) As String
   res = ""
   
   For Each itm In arr
-    Debug.Print (itm)
     res = res & itm & Chr(13)
   Next
   arrayToString = res
@@ -210,6 +210,19 @@ Public Function eraseSPs(s As String) As String
   eraseSPs = Mid(s, 1, 1) & tempStr
 End Function
 
+Public Function eraseTrailingPeriod(s As String) As String
+  tempStr = ""
+  l = Len(s)
+  For c = 1 To l
+    If c = l And Mid(s, c, 1) = "." Then
+      tempStr = tempStr + ""
+    Else
+      tempStr = tempStr + Mid(s, c, 1)
+    End If
+  Next
+  eraseTrailingPeriod = tempStr
+End Function
+
 Public Function concat(arr1 As Variant, arr2 As Variant) As Variant
   arr1Length = UBound(arr1)
   arr2Length = UBound(arr2)
@@ -223,3 +236,27 @@ End Function
 Function IsInArray(stringToBeFound As String, arr As Variant) As Boolean
   IsInArray = (UBound(Filter(arr, stringToBeFound)) > -1)
 End Function
+
+Public Function diffRows(inRowMap As Dictionary, outRowMap As Dictionary) As Dictionary
+  Dim newRows As New Dictionary
+  Dim deletedRows As New Dictionary
+  Dim result As New Dictionary
+
+  For Each inr In inRowMap.Items
+    If Not outRowMap.Exists(inr.name) Then
+      newRows.Add Key:=inr.name, Item:=inr
+    End If
+  Next
+
+  For Each outr In outRowMap.Items
+    If Not inRowMap.Exists(outr.name) Then
+      deletedRows.Add Key:=outr.name, Item:=outr
+    End If
+  Next
+
+  result.Add Key:="new", Item:=newRows
+  result.Add Key:="deleted", Item:=deletedRows
+  
+  Set diffRows = result
+End Function
+

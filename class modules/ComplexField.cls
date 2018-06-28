@@ -29,7 +29,13 @@ Public Sub init(sheet As Worksheet, c As String, Optional level As Integer, Opti
   pComplexityLevel = level
   
   Me.buildSubFields level:=pComplexityLevel, initial:=Me
-  Me.collectLowestFields level:=pComplexityLevel, initial:=Me, acc:=Me
+  If pComplexityLevel = 0 Then
+    Dim pf As PrimitiveField
+    Set pf = PrimitiveFieldFactory.CreatePrimitiveField(addr:=Me.address, path:=Me.path, ws:=sheet)
+    pLowestFields.Add Key:=pf.path, Item:=pf
+  Else
+    Me.collectLowestFields level:=pComplexityLevel, initial:=Me, acc:=Me
+  End If
 End Sub
 
 Public Sub addChild(child As ComplexField)

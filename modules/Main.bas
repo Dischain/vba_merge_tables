@@ -64,16 +64,47 @@ Public Sub main()
     Set unmatched = mergeRows(inRowMap, outRowMap, inFieldMap, outFieldMap)
   End If
   
+  'i = 1
+  'For Each itm In unmatched.Items
+  '  r = 16 + i
+  '  addr = itm.address
+  '  nm = itm.name
+  '  activeWS.Range("B" & r).Value = addr
+  '  activeWS.Range("B" & r).Offset(0, 1).Value = nm
+  '  i = i + 1
+  '  Debug.Print (itm.address & " : " & itm.name)
+  'Next
+  
+  Dim diff As New Dictionary
+  Set diff = diffRows(inRowMap, outRowMap)
+  Dim newRows As New Dictionary
+  Dim deletedRows As New Dictionary
+  Set newRows = diff.Item("new")
+  Set deletedRows = diff.Item("deleted")
+  
+  
+  
   i = 1
-  For Each itm In unmatched.Items
-    r = 16 + i
+  activeWS.Range("B" & 17).Value = "Добавлено"
+  For Each itm In newRows.Items
+    r = 17 + i
     addr = itm.address
     nm = itm.name
     activeWS.Range("B" & r).Value = addr
     activeWS.Range("B" & r).Offset(0, 1).Value = nm
     i = i + 1
-    Debug.Print (itm.address & " : " & itm.name)
+    'Debug.Print (itm.address & " : " & itm.name)
   Next
   
+  activeWS.Range("B" & (18 + i)).Value = "Удалено"
+  For Each itm In deletedRows.Items
+    r = 19 + i
+    addr = itm.address
+    nm = itm.name
+    activeWS.Range("B" & r).Value = addr
+    activeWS.Range("B" & r).Offset(0, 1).Value = nm
+    i = i + 1
+    'Debug.Print (itm.address & " : " & itm.name)
+  Next
   MsgBox ("Готово!")
 End Sub

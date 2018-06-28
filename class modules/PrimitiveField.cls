@@ -23,9 +23,7 @@ End Sub
 Public Sub setValueAt(newVal As String, row As Long)
   Dim letter As String
   letter = Split(ws.Cells(1, pCell.Column).address, "$")(1)
-  'Debug.Print (pPath & " oldVal: " & ws.Range(letter & row).Value)
   ws.Range(letter & row).Value = newVal
-  'Debug.Print (pPath & " newVal: " & ws.Range(letter & row).Value)
 End Sub
 
 Public Function getCellAt(row As Long) As Range
@@ -57,5 +55,3 @@ End Property
 Public Property Get path() As String
   path = pPath
 End Property
-
-
