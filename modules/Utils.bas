@@ -39,14 +39,14 @@ Public Function createFieldMap(addr As String, complLevel As Integer, ws As Work
   Set createFieldMap = fieldMap
 End Function
 
-Public Function createRowMap(addr As String, ws As Worksheet) As Dictionary
+Public Function createRowMap(addr As String, ws As Worksheet, Optional signs As Variant) As Dictionary
   Dim rowMap As Dictionary
   Set rowMap = New Dictionary
   
   For Each r In ws.Range(addr)
     If r.Value <> "" And Not containsEscapeWords(r.Value) Then
       Dim row As PrimitiveRow
-      Set row = PrimitiveRowFactory.CreatePrimitiveRow(ws, (r.address))
+      Set row = PrimitiveRowFactory.CreatePrimitiveRow(ws, (r.address), signs)
       
       rowMap.Add Key:=row.name, Item:=row
     End If
@@ -55,47 +55,7 @@ Public Function createRowMap(addr As String, ws As Worksheet) As Dictionary
   Set createRowMap = rowMap
 End Function
 
-Public Function eraseEOLs(s As String) As String
-  tempStr = ""
-  For c = 1 To Len(s)
-    If Mid(s, c, 1) = vbCr Or Mid(s, c, 1) = vbLf Then
-      tempStr = tempStr + ""
-    Else
-      tempStr = tempStr + Mid(s, c, 1)
-    End If
-  Next
-  eraseEOLs = tempStr
-End Function
-
-Public Function eraseSPs(s As String) As String
-  tempStr = ""
-  For c = 2 To Len(s)
-    Dim prev As Integer
-    prev = c - 1
-    
-    If c > 2 And Mid(s, c, 1) = " " And Mid(s, prev, 1) = " " Then
-      tempStr = tempStr + ""
-    Else
-      tempStr = tempStr + Mid(s, c, 1)
-    End If
-  Next
-  eraseSPs = Mid(s, 1, 1) & tempStr
-End Function
-
-Public Function concat(arr1 As Variant, arr2 As Variant) As Variant
-  arr1Length = UBound(arr1)
-  arr2Length = UBound(arr2)
-  For i = 0 To arr2Length
-    ReDim Preserve arr1(arr1Length + i + 1)
-    Set arr1(arr1Length + i) = arr2(i)
-  Next i
-  concat = arr1
-End Function
-
-Function IsInArray(stringToBeFound As String, arr As Variant) As Boolean
-  IsInArray = (UBound(Filter(arr, stringToBeFound)) > -1)
-End Function
-
+' ¬ыполн€ет сли€ние множества строк с предварительной проверкой совпадени€ по именам строк, без учета доп. признаков
 Public Function mergeRows(inRowMap As Dictionary, outRowMap As Dictionary, inFieldMap As Dictionary, outFieldMap As Dictionary) As Dictionary
   Dim notMatched As Dictionary
   Set notMatched = New Dictionary
@@ -113,6 +73,37 @@ Public Function mergeRows(inRowMap As Dictionary, outRowMap As Dictionary, inFie
   Set mergeRows = notMatched
 End Function
 
+' ¬ыполн€ет сли€ние множества строк с предварительной проверкой совпадени€ по именам строк, с учетом доп. признаков
+Public Function mergeRowsWithSigns(inRowMap As Dictionary, outRowMap As Dictionary, inFieldMap As Dictionary, outFieldMap As Dictionary) As Dictionary
+  Dim notMatched As Dictionary
+  Set notMatched = New Dictionary
+
+  For Each inRow In inRowMap.Items
+    If outRowMap.Exists(inRow.name) Then
+      Dim outRow As PrimitiveRow
+      Set outRow = outRowMap.Item(inRow.name)
+      
+      Dim inRowSigns As New Dictionary
+      Dim outRowSigns As New Dictionary
+      Set inRowSigns = inRow.signs
+      Set outRowSigns = outRow.signs
+      
+      If dictEquals(inRowSigns, outRowSigns) Then
+        Debug.Print ("eq")
+        mergeSingleRow inRow:=inRow.row, outRow:=outRow.row, inFieldMap:=inFieldMap, outFieldMap:=outFieldMap
+      Else
+        Debug.Print ("not eq")
+        notMatched.Add Key:=inRow.name, Item:=inRow
+      End If
+    Else
+      notMatched.Add Key:=inRow.name, Item:=inRow
+    End If
+  Next
+
+  Set mergeRowsWithSigns = notMatched
+End Function
+
+' ¬ыполн€ет сли€ние двух строк путем проверки всех полей
 Public Sub mergeSingleRow(inRow As Long, outRow As Long, inFieldMap As Dictionary, outFieldMap As Dictionary)
   For Each inField In inFieldMap.Items
     If outFieldMap.Exists(Key:=inField.name) Then
@@ -136,6 +127,18 @@ Public Sub mergeSingleRow(inRow As Long, outRow As Long, inFieldMap As Dictionar
     End If
   Next
 End Sub
+
+' ¬ыполн€ет операцию равенства по ключам дл€ двух хэш-таблиц
+Public Function dictEquals(dict1 As Dictionary, dict2 As Dictionary) As Boolean
+  For Each k In dict1.Keys
+    If dict1.Item(k) <> dict2.Item(k) Then
+      dictEquals = False
+      Exit Function
+    End If
+  Next
+  dictEquals = True
+End Function
+
 Public Function containsEscapeWords(name As String) As Boolean
   For Each word In escapeWords
     If startsWith((word), name) Then
@@ -178,4 +181,45 @@ Public Function stringToArray(str As String) As Variant
     res(i) = s
   Next
   stringToArray = res
+End Function
+
+Public Function eraseEOLs(s As String) As String
+  tempStr = ""
+  For c = 1 To Len(s)
+    If Mid(s, c, 1) = vbCr Or Mid(s, c, 1) = vbLf Then
+      tempStr = tempStr + ""
+    Else
+      tempStr = tempStr + Mid(s, c, 1)
+    End If
+  Next
+  eraseEOLs = tempStr
+End Function
+
+Public Function eraseSPs(s As String) As String
+  tempStr = ""
+  For c = 2 To Len(s)
+    Dim prev As Integer
+    prev = c - 1
+    
+    If c > 2 And Mid(s, c, 1) = " " And Mid(s, prev, 1) = " " Then
+      tempStr = tempStr + ""
+    Else
+      tempStr = tempStr + Mid(s, c, 1)
+    End If
+  Next
+  eraseSPs = Mid(s, 1, 1) & tempStr
+End Function
+
+Public Function concat(arr1 As Variant, arr2 As Variant) As Variant
+  arr1Length = UBound(arr1)
+  arr2Length = UBound(arr2)
+  For i = 0 To arr2Length
+    ReDim Preserve arr1(arr1Length + i + 1)
+    Set arr1(arr1Length + i) = arr2(i)
+  Next i
+  concat = arr1
+End Function
+
+Function IsInArray(stringToBeFound As String, arr As Variant) As Boolean
+  IsInArray = (UBound(Filter(arr, stringToBeFound)) > -1)
 End Function

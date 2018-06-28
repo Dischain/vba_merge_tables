@@ -1,11 +1,17 @@
 Attribute VB_Name = "Main"
 Public Sub main()
+  ' Чистим список несовпадений по строкам из результата
+  ' предыдущего запуска программы (20 строк)
   Dim activeWS As Worksheet
   Set activeWS = ActiveWorkbook.ActiveSheet
   
-  For Each c In activeWS.Range("B17:C37")
+  For Each c In activeWS.Range("B17:C107")
     c.Value = ""
   Next
+  
+  ' ----------------------------------------------------'
+  ' Выборка исходных данных программы
+  ' ----------------------------------------------------'
   
   ' Источник данных, подлежащий форматированию
   inputFilePath = activeWS.Range("C3").Value
@@ -32,20 +38,31 @@ Public Sub main()
   Dim inRows, outRows As String
   inRows = activeWS.Range("C7").Value
   outRows = activeWS.Range("E7").Value
-   
+  ' Дополнительные признаки
+  inSignsStr = activeWS.Range("C8").Value
+  outSignsStr = activeWS.Range("E8").Value
+  ' ----------------------------------------------------'
+  
   Dim inFieldMap As New Dictionary
   Dim outFieldMap As New Dictionary
   Set inFieldMap = createFieldMap((inFields1), complLevel:=(subFields1), ws:=inWS)
   Set outFieldMap = createFieldMap((outFields1), complLevel:=(subFields1), ws:=outWS)
   
+  Dim unmatched As New Dictionary
+  
   Dim inRowMap As New Dictionary
   Dim outRowMap As New Dictionary
-  Set inRowMap = createRowMap((inRows), ws:=inWS)
-  Set outRowMap = createRowMap((outRows), ws:=outWS)
-
-  'mergeSingleRow 17, 17, inFieldMap, outFieldMap
-  Dim unmatched As New Dictionary
-  Set unmatched = mergeRows(inRowMap, outRowMap, inFieldMap, outFieldMap)
+  If inSignsStr <> "" And outSignsStr <> "" Then
+    inSigns = Split(inSignsStr, " ")
+    outSigns = Split(outSignsStr, " ")
+    Set inRowMap = createRowMap((inRows), ws:=inWS, signs:=inSigns)
+    Set outRowMap = createRowMap((outRows), ws:=outWS, signs:=outSigns)
+    Set unmatched = mergeRowsWithSigns(inRowMap, outRowMap, inFieldMap, outFieldMap)
+  Else
+    Set inRowMap = createRowMap((inRows), ws:=inWS)
+    Set outRowMap = createRowMap((outRows), ws:=outWS)
+    Set unmatched = mergeRows(inRowMap, outRowMap, inFieldMap, outFieldMap)
+  End If
   
   i = 1
   For Each itm In unmatched.Items
